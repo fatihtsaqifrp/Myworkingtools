@@ -8,6 +8,13 @@ import { formatDuration } from '../../../utils/natural-sort';
 type StudioMode = 'background' | 'ocr';
 type BackgroundProvider = 'local' | 'cloud';
 
+interface CloudCreditState {
+  credit: number | null;
+  expirationDate: string | null;
+  loading: boolean;
+  error: string | null;
+}
+
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
@@ -22,6 +29,8 @@ export function AIStudioTool() {
   const [backgroundProvider, setBackgroundProvider] = useState<BackgroundProvider>('local');
   const [files, setFiles] = useState<File[]>([]);
   const [edgeThreshold, setEdgeThreshold] = useState(20);
+  const [cloudCreditState, setCloudCreditState] = useState<CloudCreditState>({ credit: null, expirationDate: null, loading: false, error: null });
+  const [creditRefreshKey, setCreditRefreshKey] = useState(0);
   const [language, setLanguage] = useState<'eng' | 'ind'>('ind');
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
@@ -48,6 +57,30 @@ export function AIStudioTool() {
     setInputPreviewUrls(urls);
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [files]);
+
+  useEffect(() => {
+    if (backgroundProvider !== 'cloud') return;
+    let active = true;
+    setCloudCreditState((current) => ({ ...current, loading: true, error: null }));
+    fetch('/api/withoutbg/credits')
+      .then(async (response) => {
+        const result = await response.json() as { credit?: unknown; expiration_date?: unknown; error?: unknown };
+        if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : 'Saldo kredit tidak tersedia.');
+        if (!Number.isInteger(result.credit) || typeof result.expiration_date !== 'string') {
+          throw new Error('Format saldo kredit tidak valid.');
+        }
+        if (active) setCloudCreditState({ credit: result.credit as number, expirationDate: result.expiration_date, loading: false, error: null });
+      })
+      .catch((error: unknown) => {
+        if (active) setCloudCreditState({
+          credit: null,
+          expirationDate: null,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Gagal memuat saldo kredit.',
+        });
+      });
+    return () => { active = false; };
+  }, [backgroundProvider, creditRefreshKey, status.finished]);
 
   const runBackgroundRemoval = () => {
     if (!files.length) return;
@@ -192,6 +225,18 @@ export function AIStudioTool() {
                 <span className="mt-1 block text-[10px] font-normal">1 kredit/gambar berhasil · maks. 10 per menit</span>
               </button>
             </div>
+            {backgroundProvider === 'cloud' && (
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-900" aria-live="polite">
+                <span>
+                  {cloudCreditState.loading
+                    ? 'Memuat saldo kredit…'
+                    : cloudCreditState.credit !== null
+                      ? <>Sisa <strong>{cloudCreditState.credit}</strong> kredit · berlaku s/d {cloudCreditState.expirationDate}</>
+                      : cloudCreditState.error || 'Saldo kredit belum tersedia.'}
+                </span>
+                <button type="button" onClick={() => setCreditRefreshKey((key) => key + 1)} disabled={cloudCreditState.loading} className="shrink-0 font-semibold underline disabled:opacity-50">Perbarui</button>
+              </div>
+            )}
           </fieldset>
           {files.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

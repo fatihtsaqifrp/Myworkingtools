@@ -134,6 +134,13 @@ const TOOLS: ToolMetadata[] = [
     badge: 'WASM',
   },
   {
+    id: 'ai-studio',
+    title: 'AI Background Remover & OCR',
+    shortDesc: 'Hapus latar lokal gratis atau gunakan Cloud untuk detail lebih baik; tersedia juga OCR gambar batch.',
+    category: 'office',
+    badge: 'LOKAL / CLOUD',
+  },
+  {
     id: 'calculator',
     title: 'Scientific Calculator',
     shortDesc: 'Kalkulator ilmiah dengan trigonometri, logaritma, pangkat, faktorial, mode DEG/RAD, dan riwayat.',

@@ -20,6 +20,7 @@ const ImageOptimizerTool = lazy(() => import('./components/tools/office/ImageOpt
 const CodeGeneratorTool = lazy(() => import('./components/tools/office/CodeGeneratorTool').then((module) => ({ default: module.CodeGeneratorTool })));
 const MailMergeTool = lazy(() => import('./components/tools/office/MailMergeTool').then((module) => ({ default: module.MailMergeTool })));
 const MediaTool = lazy(() => import('./components/tools/office/MediaTool').then((module) => ({ default: module.MediaTool })));
+const AIStudioTool = lazy(() => import('./components/tools/office/AIStudioTool').then((module) => ({ default: module.AIStudioTool })));
 const DocumentConverterTool = lazy(() => import('./components/tools/DocumentConverterTool').then((module) => ({ default: module.DocumentConverterTool })));
 const ScientificCalculatorTool = lazy(() => import('./components/tools/ScientificCalculatorTool').then((module) => ({ default: module.ScientificCalculatorTool })));
 const PlayGamesTool = lazy(() => import('./components/tools/PlayGamesTool').then((module) => ({ default: module.PlayGamesTool })));
@@ -79,6 +80,7 @@ export default function App() {
               {activeTool === 'code-generator' && <CodeGeneratorTool />}
               {activeTool === 'mail-merge' && <MailMergeTool />}
               {activeTool === 'media' && <MediaTool />}
+              {activeTool === 'ai-studio' && <AIStudioTool />}
               {activeTool === 'convert-documents' && <DocumentConverterTool />}
               {activeTool === 'calculator' && <ScientificCalculatorTool />}
               {activeTool === 'games' && <PlayGamesTool />}

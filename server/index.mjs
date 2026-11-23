@@ -141,6 +141,31 @@ async function removeBackgroundCloud(request, response) {
   response.end(result);
 }
 
+async function getWithoutBgCredits(request, response) {
+  if (request.method !== 'GET') return json(response, 405, { error: 'Metode request tidak didukung.' });
+  if (!isSameOrigin(request)) return json(response, 403, { error: 'Request harus berasal dari aplikasi ini.' });
+  const apiKey = process.env.WITHOUTBG_API_KEY;
+  if (!apiKey) return json(response, 503, { error: 'WITHOUTBG_API_KEY belum diatur di Render.' });
+  try {
+    const upstream = await fetch('https://api.withoutbg.com/available-credit', {
+      headers: { 'X-API-Key': apiKey },
+      signal: AbortSignal.timeout(10_000),
+    });
+    let result;
+    try { result = await upstream.json(); }
+    catch { return json(response, 502, { error: 'Layanan kredit mengirim respons yang tidak valid.' }); }
+    if (!upstream.ok || !Number.isInteger(result?.credit) || typeof result?.expiration_date !== 'string') {
+      return json(response, upstream.status >= 500 ? 502 : upstream.status || 502, {
+        error: upstream.status === 401 ? 'WITHOUTBG_API_KEY tidak valid.' : 'Saldo kredit tidak dapat dibaca dari withoutBG.',
+      });
+    }
+    return json(response, 200, { credit: result.credit, expiration_date: result.expiration_date });
+  } catch (error) {
+    const timeout = error instanceof Error && error.name === 'TimeoutError';
+    return json(response, timeout ? 504 : 502, { error: timeout ? 'Layanan kredit terlalu lama merespons.' : 'Tidak dapat menghubungi withoutBG.' });
+  }
+}
+
 async function runOcr(request, response) {
   if (request.method !== 'POST') return json(response, 405, { error: 'Metode request tidak didukung.' });
   if (!isSameOrigin(request)) return json(response, 403, { error: 'Request harus berasal dari aplikasi ini.' });
@@ -217,6 +242,7 @@ const server = createServer(async (request, response) => {
     const pathname = new URL(request.url, 'http://localhost').pathname;
     if (pathname === '/api/health') return json(response, 200, { ok: true });
     if (pathname === '/api/remove-background-cloud') return await removeBackgroundCloud(request, response);
+    if (pathname === '/api/withoutbg/credits') return await getWithoutBgCredits(request, response);
     if (pathname === '/api/ocr') return await runOcr(request, response);
     if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { error: 'Metode request tidak didukung.' });
     return await serveStatic(request, response);
