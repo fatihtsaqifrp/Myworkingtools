@@ -1,6 +1,6 @@
 # fatihworkingtools — PDF, Office & Productivity Tools
 
-Aplikasi web untuk PDF, spreadsheet, gambar, QR/barcode, mail merge, audio/video, background removal, OCR, kalkulator ilmiah, dan mini games. Sebagian besar pemrosesan berjalan di browser. Background removal memakai API withoutBG; OCR memakai OCR.space Engine 3. Kedua API dipanggil melalui server Node agar API key tidak dikirim ke browser. Aplikasi mendukung PWA dan dapat di-deploy di Render tanpa database.
+Aplikasi web untuk PDF, spreadsheet, gambar, QR/barcode, mail merge, audio/video, background removal, OCR, kalkulator ilmiah, dan mini games. Background removal menyediakan mode lokal di browser dan mode Cloud withoutBG; OCR memakai OCR.space Engine 3 melalui server. Aplikasi mendukung PWA dan dapat di-deploy di Render tanpa database.
 
 Waktu proses aktual ditampilkan setelah pekerjaan selesai, tetapi tidak dapat dijamin di bawah satu menit untuk semua file. Ukuran/jumlah file, WASM yang perlu dimuat pertama kali, memori, dan kecepatan perangkat memengaruhi hasil.
 
@@ -59,7 +59,7 @@ Waktu proses aktual ditampilkan setelah pekerjaan selesai, tetapi tidak dapat di
 
 - Untuk melindungi memori tab, beberapa modul membatasi jumlah/ukuran file dan jumlah baris/dokumen per batch; batas yang tepat ditampilkan pada pesan validasi.
 - OCR.space Scanner memerlukan `OCR_SPACE_API_KEY` di environment server. File dikirim ke server lalu diteruskan ke OCR.space; jangan gunakan untuk dokumen rahasia jika tidak menyetujui pemrosesan pihak ketiga. Server membatasi file hingga 1 MB dan menerapkan batas 10 permintaan per menit per IP pada tiap instance (best effort, bukan kuota global). Paket gratis OCR.space membatasi PDF hingga 3 halaman dan Engine 3 hingga 1.000 konversi per bulan. Lihat [dokumentasi OCR.space](https://ocr.space/ocrapi).
-- Background removal memerlukan `WITHOUTBG_API_KEY` di environment server dan memakai satu kredit API per gambar yang berhasil diproses. Gambar dikirim ke withoutBG dan ukuran maksimum per file adalah 20 MB. Aplikasi tidak menyimpan salinan gambar di server.
+- Background removal mode lokal memakai model MODNet melalui Transformers.js; model/runtime sekitar 34 MB diunduh saat pertama digunakan dan gambar tidak dikirim ke server. Mode Cloud withoutBG memakai 1 kredit per gambar yang berhasil dan mengirim gambar ke layanan; maksimum 20 MB per gambar dan 10 gambar per menit.
 - Crop PDF mengubah batas tampilan (`CropBox`); konten di luar batas crop tidak dihapus permanen dan mungkin masih bisa dipulihkan.
 - Output background removal disediakan sebagai file PNG terpisah. Untuk batch, unduh tiap gambar dari tautan hasil agar browser tidak memblokir unduhan otomatis bertubi-tubi.
 - Semua alat berat dijalankan di Web Worker bila didukung. Batas memori dan codec browser/perangkat tetap berlaku; error proses ditampilkan di UI dan tidak dianggap berhasil.
@@ -163,9 +163,7 @@ npm run preview
 Blueprint `render.yaml` membuat satu Node web service yang menyajikan frontend dan API proxy. Tidak ada database.
 
 1. Push repository ke GitHub dan buat Blueprint di Render dari repository tersebut.
-2. Tambahkan `WITHOUTBG_API_KEY` di environment variables service Render. Buat key baru di withoutBG dan jangan menaruhnya di source code, file `.env` yang di-commit, atau variabel `VITE_*`.
-3. Untuk mengaktifkan OCR.space, tambahkan juga `OCR_SPACE_API_KEY`.
-4. Render menjalankan `npm ci && npm run build`, lalu `npm start`. Health check tersedia di `/api/health`.
+2. Render menjalankan `npm ci && npm run build`, lalu `npm start`. Health check tersedia di `/api/health`.
 
-Fitur background removal memerlukan kredit aktif pada withoutBG. OCR memerlukan API key OCR.space. Endpoint server membatasi unggahan gambar ke 20 MB dan OCR ke 1 MB.
+Mode lokal background removal tidak memakai key atau kredit. Untuk mode Cloud, isi `WITHOUTBG_API_KEY` di environment variables Render. Untuk OCR, isi `OCR_SPACE_API_KEY`. Kedua key tetap rahasia di server.
 # Myworkingtools

@@ -6,6 +6,7 @@ import { useOfficeWorker } from './useOfficeWorker';
 import { formatDuration } from '../../../utils/natural-sort';
 
 type StudioMode = 'background' | 'ocr';
+type BackgroundProvider = 'local' | 'cloud';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -18,7 +19,9 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export function AIStudioTool() {
   const [mode, setMode] = useState<StudioMode>('background');
+  const [backgroundProvider, setBackgroundProvider] = useState<BackgroundProvider>('local');
   const [files, setFiles] = useState<File[]>([]);
+  const [edgeThreshold, setEdgeThreshold] = useState(20);
   const [language, setLanguage] = useState<'eng' | 'ind'>('ind');
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
@@ -48,10 +51,11 @@ export function AIStudioTool() {
 
   const runBackgroundRemoval = () => {
     if (!files.length) return;
-    run(
-      () => new Worker(new URL('../../../workers/background-removal-api.worker.ts', import.meta.url), { type: 'module' }),
-      { files }
-    );
+    if (backgroundProvider === 'cloud') {
+      run(() => new Worker(new URL('../../../workers/background-removal-cloud.worker.ts', import.meta.url), { type: 'module' }), { files });
+      return;
+    }
+    run(() => new Worker(new URL('../../../workers/background-removal.worker.ts', import.meta.url), { type: 'module' }), { files, edgeThreshold });
   };
 
   const runOcr = async () => {
@@ -154,7 +158,9 @@ export function AIStudioTool() {
         <StudioModeSwitch mode={mode} onChange={changeMode} />
         <OfficeToolFrame
           title="AI Background Remover"
-          description="AI withoutBG memisahkan objek dari latar melalui API cloud. Foto dikirim ke layanan untuk diproses."
+          description={backgroundProvider === 'local'
+            ? 'Model AI berjalan di browser laptop kamu. Foto tetap di perangkat dan tidak dikirim ke server.'
+            : 'Model AI cloud untuk detail tepi yang lebih baik. Foto dikirim ke withoutBG untuk diproses.'}
           actionLabel="Hapus latar dan unduh PNG"
           status={status}
           onSubmit={runBackgroundRemoval}
@@ -174,6 +180,19 @@ export function AIStudioTool() {
               {files.length ? `${files.length} gambar dipilih` : 'Paling cocok untuk foto orang dan potret.'}
             </span>
           </label>
+          <fieldset className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
+            <legend className="px-1 text-xs font-bold text-gray-700">Metode penghapusan latar</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" aria-pressed={backgroundProvider === 'local'} onClick={() => setBackgroundProvider('local')} className={`rounded-lg border px-3 py-2 text-left text-xs transition ${backgroundProvider === 'local' ? 'border-blue-500 bg-blue-50 text-blue-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <span className="block font-bold">Lokal · Gratis</span>
+                <span className="mt-1 block text-[10px] font-normal">Proses di laptop, foto tidak diunggah</span>
+              </button>
+              <button type="button" aria-pressed={backgroundProvider === 'cloud'} onClick={() => setBackgroundProvider('cloud')} className={`rounded-lg border px-3 py-2 text-left text-xs transition ${backgroundProvider === 'cloud' ? 'border-violet-500 bg-violet-50 text-violet-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                <span className="block font-bold">Cloud · Kualitas tinggi</span>
+                <span className="mt-1 block text-[10px] font-normal">1 kredit/gambar berhasil · maks. 10 per menit</span>
+              </button>
+            </div>
+          </fieldset>
           {files.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {files.map((file, index) => (
@@ -189,9 +208,22 @@ export function AIStudioTool() {
               ))}
             </div>
           )}
-          <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
-            <strong>Proses cloud via withoutBG:</strong> gambar dikirim ke layanan API tanpa menyimpan salinan di aplikasi. Maksimal 20 MB per gambar; pemrosesan memakai kredit API. Hasil terbaik biasanya dari foto dengan subjek yang jelas.
-          </p>
+          {backgroundProvider === 'local' ? (
+            <>
+              <label className="block space-y-1.5 rounded-lg border border-gray-200 bg-white p-3 text-xs font-semibold text-gray-700">
+                Bersihkan sisa latar
+                <input type="range" min="0" max="160" step="5" value={edgeThreshold} onChange={(event) => setEdgeThreshold(Number(event.target.value))} className="w-full accent-blue-600" />
+                <span className="block text-[11px] font-normal text-gray-500">Naikkan kalau halo latar masih menempel; turunkan kalau rambut atau tepi subjek ikut terhapus.</span>
+              </label>
+              <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+                <strong>Mode lokal:</strong> model dan runtime sekitar 34 MB diunduh saat pertama dipakai. Foto tetap di laptop; kecepatan dan hasil bergantung pada perangkat serta foto.
+              </p>
+            </>
+          ) : (
+            <p className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs leading-relaxed text-violet-900">
+              <strong>Mode Cloud:</strong> gambar dikirim ke withoutBG. Setiap gambar yang berhasil diproses memakai 1 kredit API. Batas 20 MB per gambar dan 10 gambar per menit. Kualitas hasil bergantung pada foto dan model; tidak ada hasil yang bisa dijamin sempurna untuk semua gambar.
+            </p>
+          )}
         </OfficeToolFrame>
         {status.finished && status.downloads.length > 0 && (
           <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">

@@ -94,65 +94,50 @@ async function parseForm(request, response, maxBytes) {
   }
 }
 
-async function removeBackground(request, response) {
+async function removeBackgroundCloud(request, response) {
   if (request.method !== 'POST') return json(response, 405, { error: 'Metode request tidak didukung.' });
   if (!isSameOrigin(request)) return json(response, 403, { error: 'Request harus berasal dari aplikasi ini.' });
   if (isRateLimited(getClientIp(request), 10)) {
     return json(response, 429, { error: 'Terlalu banyak permintaan. Coba lagi satu menit lagi.' });
   }
   const apiKey = process.env.WITHOUTBG_API_KEY;
-  if (!apiKey) return json(response, 503, { error: 'Layanan background removal belum dikonfigurasi.' });
+  if (!apiKey) return json(response, 503, { error: 'Cloud belum dikonfigurasi. Admin perlu mengatur WITHOUTBG_API_KEY di Render.' });
 
   const form = await parseForm(request, response, MAX_BG_BYTES);
   if (!form) return;
   const file = form.get('file');
-  if (!file || typeof file === 'string' || typeof file.arrayBuffer !== 'function') {
-    return json(response, 400, { error: 'Pilih gambar terlebih dahulu.' });
-  }
-  if (!file.size) return json(response, 400, { error: 'File yang dipilih kosong.' });
-  if (file.size > MAX_BG_BYTES) return json(response, 413, { error: 'Ukuran maksimum gambar adalah 20 MB.' });
+  if (!file || typeof file === 'string' || !file.size) return json(response, 400, { error: 'Pilih foto yang valid.' });
+  if (file.size > MAX_BG_BYTES) return json(response, 413, { error: 'Ukuran maksimum foto adalah 20 MB.' });
   const accepted = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/tiff', 'image/bmp', 'image/gif']);
-  if (!accepted.has(file.type)) return json(response, 415, { error: 'Format tidak didukung. Gunakan JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, atau GIF.' });
+  if (!accepted.has(file.type)) return json(response, 415, { error: 'Format tidak didukung oleh layanan Cloud.' });
 
   const upstreamForm = new FormData();
   upstreamForm.append('file', file, file.name || 'image');
   let upstream;
   try {
     upstream = await fetch('https://api.withoutbg.com/v1.0/image-without-background', {
-      method: 'POST',
-      headers: { 'X-API-Key': apiKey },
-      body: upstreamForm,
+      method: 'POST', headers: { 'X-API-Key': apiKey }, body: upstreamForm,
       signal: AbortSignal.timeout(90_000),
     });
   } catch (error) {
     const timeout = error instanceof Error && error.name === 'TimeoutError';
-    return json(response, timeout ? 504 : 502, {
-      error: timeout ? 'Layanan background removal terlalu lama merespons. Coba lagi.' : 'Tidak dapat menghubungi layanan background removal.',
-    });
+    return json(response, timeout ? 504 : 502, { error: timeout ? 'Cloud terlalu lama merespons. Coba lagi.' : 'Tidak dapat menghubungi layanan Cloud.' });
   }
   if (!upstream.ok) {
     const messages = {
-      401: 'API key background removal tidak valid.', 402: 'Kredit API habis. Tambahkan kredit untuk melanjutkan.',
-      403: 'Kredit API kedaluwarsa. Periksa masa aktif kredit.', 413: 'Ukuran maksimum gambar adalah 20 MB.',
-      415: 'Format gambar tidak didukung oleh layanan.', 422: 'Layanan tidak dapat memproses gambar ini.',
-      429: 'Layanan sedang menerima terlalu banyak permintaan. Coba lagi nanti.',
+      401: 'Key Cloud tidak valid.', 402: 'Kredit API habis.', 403: 'Kredit API kedaluwarsa.',
+      413: 'Ukuran maksimum foto adalah 20 MB.', 415: 'Format foto tidak didukung.',
+      422: 'Layanan tidak dapat memproses foto ini.', 429: 'Layanan sedang sibuk. Coba lagi nanti.',
     };
-    const message = messages[upstream.status] ?? `Layanan gagal memproses gambar (HTTP ${upstream.status}).`;
-    return json(response, upstream.status >= 500 ? 502 : upstream.status, { error: message });
+    return json(response, upstream.status >= 500 ? 502 : upstream.status, {
+      error: messages[upstream.status] ?? `Layanan gagal memproses foto (HTTP ${upstream.status}).`,
+    });
   }
   const result = Buffer.from(await upstream.arrayBuffer());
   if (!result.length || !upstream.headers.get('content-type')?.includes('image/png')) {
     return json(response, 502, { error: 'Layanan mengirim hasil gambar yang tidak valid.' });
   }
-  const safeName = (file.name || 'image').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 80) || 'image';
-  response.writeHead(200, {
-    'Content-Type': 'image/png',
-    'Content-Disposition': `attachment; filename="${safeName}-tanpa-latar.png"`,
-    'Cache-Control': 'no-store',
-    'X-Input-Dimensions': upstream.headers.get('x-input-dimensions') ?? '',
-    'X-Processed-Dimensions': upstream.headers.get('x-processed-dimensions') ?? '',
-    'X-Was-Downscaled': upstream.headers.get('x-was-downscaled') ?? '',
-  });
+  response.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
   response.end(result);
 }
 
@@ -231,7 +216,7 @@ const server = createServer(async (request, response) => {
   try {
     const pathname = new URL(request.url, 'http://localhost').pathname;
     if (pathname === '/api/health') return json(response, 200, { ok: true });
-    if (pathname === '/api/remove-background') return await removeBackground(request, response);
+    if (pathname === '/api/remove-background-cloud') return await removeBackgroundCloud(request, response);
     if (pathname === '/api/ocr') return await runOcr(request, response);
     if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { error: 'Metode request tidak didukung.' });
     return await serveStatic(request, response);
