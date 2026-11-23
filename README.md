@@ -1,6 +1,6 @@
 # fatihworkingtools — PDF, Office & Productivity Tools
 
-Aplikasi statis untuk PDF, spreadsheet, gambar, QR/barcode, mail merge, audio/video, background removal, OCR, kalkulator ilmiah, dan mini games. Sebagian besar pemrosesan berjalan di browser. Tool OCR utama memakai OCR.space Engine 3 melalui Netlify Function; API key disimpan sebagai environment variable rahasia di Netlify. Aplikasi dapat di-deploy di Netlify Free Tier dan mendukung PWA.
+Aplikasi web untuk PDF, spreadsheet, gambar, QR/barcode, mail merge, audio/video, background removal, OCR, kalkulator ilmiah, dan mini games. Sebagian besar pemrosesan berjalan di browser. Background removal memakai API withoutBG; OCR memakai OCR.space Engine 3. Kedua API dipanggil melalui server Node agar API key tidak dikirim ke browser. Aplikasi mendukung PWA dan dapat di-deploy di Render tanpa database.
 
 Waktu proses aktual ditampilkan setelah pekerjaan selesai, tetapi tidak dapat dijamin di bawah satu menit untuk semua file. Ukuran/jumlah file, WASM yang perlu dimuat pertama kali, memori, dan kecepatan perangkat memengaruhi hasil.
 
@@ -45,21 +45,21 @@ Waktu proses aktual ditampilkan setelah pekerjaan selesai, tetapi tidak dapat di
 | **8. PDF ke Images (ZIP)** | Ekstrak setiap lembar halaman PDF menjadi file gambar beresolusi tinggi (JPG/PNG) dan otomatis diunduh dalam file `.zip`. |
 | **9. Watermark & Nomor Halaman** | Tambahkan cap teks dan nomor halaman otomatis, lalu seret keduanya langsung di pratinjau PDF yang dapat diperbesar. |
 | **10. Protect & Redact PDF** | Sensor (*redact*) area informasi rahasia secara permanen (menutup teks agar tidak bisa disalin) serta fitur dekripsi/buka proteksi PDF. |
-| **11. OCR.space Scanner** | Ekstrak teks dari gambar atau PDF dengan Engine 3, deteksi orientasi, deteksi bahasa, dan mode tabel. File dikirim melalui Netlify Function ke OCR.space. |
+| **11. OCR.space Scanner** | Ekstrak teks dari gambar atau PDF dengan Engine 3, deteksi orientasi, deteksi bahasa, dan mode tabel. File dikirim melalui server ke OCR.space. |
 | **12. Excel & CSV Merger** | Gabungkan CSV/XLS/XLSX, normalisasi teks, deduplikasi kolom, dan ekspor CSV/XLSX. |
 | **13. Bulk Image Optimizer** | Kompres dan ubah format gambar, resize, watermark teks/logo, lalu unduh ZIP. |
 | **14. QR & Barcode Generator** | Buat QR/Code 128 dari teks, CSV, atau Excel dan susun sebagai PDF A4. |
 | **15. DOCX Mail Merge** | Isi template Word dari CSV/Excel lalu unduh dokumen personalisasi dalam ZIP. |
 | **16. Audio & Video Tools** | Kompres MP4, trim klip, atau ekstrak MP3 dengan FFmpeg WebAssembly. |
-| **17. Background Remover & OCR** | Hapus latar foto dengan MODNet di browser, rapikan mask tepinya secara lokal dengan panduan warna gambar, dan bandingkan pratinjau asli/hasil; OCR tersedia dalam Bahasa Indonesia/English. |
+| **17. Background Remover & OCR** | Hapus latar foto melalui API cloud withoutBG dan bandingkan pratinjau asli/hasil; OCR gambar tersedia dalam Bahasa Indonesia/English. |
 | **18. Scientific Calculator** | Kalkulator ilmiah lokal dengan fungsi trigonometri (DEG/RAD), logaritma, akar, pangkat, faktorial, konstanta, dan riwayat perhitungan. |
 | **19. Mini Games** | Main Sudoku, 2048, Zip, Patches (susun patch warna dengan drag-and-drop), dan Queens langsung di browser tanpa backend. |
 
 ### Batas pemrosesan dan ketergantungan
 
 - Untuk melindungi memori tab, beberapa modul membatasi jumlah/ukuran file dan jumlah baris/dokumen per batch; batas yang tepat ditampilkan pada pesan validasi.
-- OCR.space Scanner memerlukan `OCR_SPACE_API_KEY` yang dikonfigurasi admin di Netlify. File dikirim ke Netlify Function lalu diteruskan ke OCR.space; jangan gunakan untuk dokumen rahasia jika tidak menyetujui pemrosesan pihak ketiga. Function membatasi file hingga 1 MB dan menerapkan batas 10 permintaan per menit per IP pada tiap instance (best effort, bukan kuota global). Paket gratis OCR.space membatasi PDF hingga 3 halaman dan Engine 3 hingga 1.000 konversi per bulan. Lihat [dokumentasi OCR.space](https://ocr.space/ocrapi).
-- Background removal mengunduh model AI MODNet dan runtime ONNX WebAssembly pada pemakaian pertama; browser menyimpannya dalam cache jika didukung. Foto tetap diproses di perangkat dan tidak diunggah. Perapian tepi menggunakan warna dari foto sebagai panduan, tetapi bukan pengganti koreksi manual dan hasilnya paling konsisten pada foto orang/potret.
+- OCR.space Scanner memerlukan `OCR_SPACE_API_KEY` di environment server. File dikirim ke server lalu diteruskan ke OCR.space; jangan gunakan untuk dokumen rahasia jika tidak menyetujui pemrosesan pihak ketiga. Server membatasi file hingga 1 MB dan menerapkan batas 10 permintaan per menit per IP pada tiap instance (best effort, bukan kuota global). Paket gratis OCR.space membatasi PDF hingga 3 halaman dan Engine 3 hingga 1.000 konversi per bulan. Lihat [dokumentasi OCR.space](https://ocr.space/ocrapi).
+- Background removal memerlukan `WITHOUTBG_API_KEY` di environment server dan memakai satu kredit API per gambar yang berhasil diproses. Gambar dikirim ke withoutBG dan ukuran maksimum per file adalah 20 MB. Aplikasi tidak menyimpan salinan gambar di server.
 - Crop PDF mengubah batas tampilan (`CropBox`); konten di luar batas crop tidak dihapus permanen dan mungkin masih bisa dipulihkan.
 - Output background removal disediakan sebagai file PNG terpisah. Untuk batch, unduh tiap gambar dari tautan hasil agar browser tidak memblokir unduhan otomatis bertubi-tubi.
 - Semua alat berat dijalankan di Web Worker bila didukung. Batas memori dan codec browser/perangkat tetap berlaku; error proses ditampilkan di UI dan tidak dianggap berhasil.
@@ -158,26 +158,14 @@ npm run preview
 
 ---
 
-## 🌐 Deploy ke Netlify (Static)
+## 🌐 Deploy ke Render (tanpa database)
 
-Aplikasi ini sudah dilengkapi berkas `netlify.toml` dengan konfigurasi:
-- **Build Command**: `npm run build`
-- **Publish Directory**: `dist`
-- **SPA Redirection**: `/* -> /index.html`
-- **Header Keamanan & WebAssembly**:
-  - `Cross-Origin-Opener-Policy: same-origin`
-  - `Cross-Origin-Embedder-Policy: require-corp`
-  - `Content-Security-Policy`: mendukung WebAssembly eval dan Web Worker blobs.
-  - Caching agresif untuk aset statis (`max-age=31536000, immutable`).
+Blueprint `render.yaml` membuat satu Node web service yang menyajikan frontend dan API proxy. Tidak ada database.
 
-### Langkah Deploy:
-1. **GitHub/GitLab**: Push repositori ke Git, lalu hubungkan ke akun [Netlify](https://app.netlify.com/). Netlify akan langsung mendeteksi `netlify.toml` dan melakukan build.
-2. **Netlify Drop**: Jalankan `npm run build`, lalu seret dan lepas folder `dist/` ke antarmuka [Netlify Drop](https://app.netlify.com/drop).
+1. Push repository ke GitHub dan buat Blueprint di Render dari repository tersebut.
+2. Tambahkan `WITHOUTBG_API_KEY` di environment variables service Render. Buat key baru di withoutBG dan jangan menaruhnya di source code, file `.env` yang di-commit, atau variabel `VITE_*`.
+3. Untuk mengaktifkan OCR.space, tambahkan juga `OCR_SPACE_API_KEY`.
+4. Render menjalankan `npm ci && npm run build`, lalu `npm start`. Health check tersedia di `/api/health`.
 
-Untuk memakai OCR.space Scanner:
-
-1. Daftarkan [API key OCR.space](https://ocr.space/ocrapi/freekey).
-2. Di Netlify, buka **Site configuration → Environment variables** dan tambahkan `OCR_SPACE_API_KEY` dengan nilai API key. Jangan menaruh key di source code, file `.env` yang di-commit, atau variabel `VITE_*`.
-3. Deploy ulang situs agar Netlify Function menerima environment variable tersebut. OCR hanya berfungsi pada deployment yang menyertakan Netlify Functions; unggah folder `dist/` melalui Netlify Drop saja tidak menyertakan function.
-4. Jalankan pengujian proxy lokal dengan `npm run test:ocr`. Untuk uji UI lokal beserta function, gunakan Netlify CLI (`netlify dev`) dan atur environment variable lokal di luar repository.
+Fitur background removal memerlukan kredit aktif pada withoutBG. OCR memerlukan API key OCR.space. Endpoint server membatasi unggahan gambar ke 20 MB dan OCR ke 1 MB.
 # Myworkingtools

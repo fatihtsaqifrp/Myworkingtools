@@ -19,7 +19,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
 export function AIStudioTool() {
   const [mode, setMode] = useState<StudioMode>('background');
   const [files, setFiles] = useState<File[]>([]);
-  const [edgeThreshold, setEdgeThreshold] = useState(20);
   const [language, setLanguage] = useState<'eng' | 'ind'>('ind');
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
@@ -50,8 +49,8 @@ export function AIStudioTool() {
   const runBackgroundRemoval = () => {
     if (!files.length) return;
     run(
-      () => new Worker(new URL('../../../workers/background-removal.worker.ts', import.meta.url), { type: 'module' }),
-      { files, edgeThreshold }
+      () => new Worker(new URL('../../../workers/background-removal-api.worker.ts', import.meta.url), { type: 'module' }),
+      { files }
     );
   };
 
@@ -155,7 +154,7 @@ export function AIStudioTool() {
         <StudioModeSwitch mode={mode} onChange={changeMode} />
         <OfficeToolFrame
           title="AI Background Remover"
-          description="AI memisahkan objek dari latar langsung di browser. Foto tidak dikirim ke server."
+          description="AI withoutBG memisahkan objek dari latar melalui API cloud. Foto dikirim ke layanan untuk diproses."
           actionLabel="Hapus latar dan unduh PNG"
           status={status}
           onSubmit={runBackgroundRemoval}
@@ -190,13 +189,8 @@ export function AIStudioTool() {
               ))}
             </div>
           )}
-          <label className="block space-y-1.5 rounded-lg border border-gray-200 bg-white p-3 text-xs font-semibold text-gray-700">
-            Bersihkan sisa latar
-            <input type="range" min="0" max="160" step="5" value={edgeThreshold} onChange={(event) => setEdgeThreshold(Number(event.target.value))} className="w-full accent-blue-600" />
-            <span className="block text-[11px] font-normal text-gray-500">Naikkan kalau halo latar masih menempel; turunkan kalau rambut atau tepi subjek ikut terhapus.</span>
-          </label>
           <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
-            <strong>Detail tepi ikut dirapikan:</strong> mask AI dihaluskan dengan panduan warna foto agar batas subjek lebih bersih. Model dan runtime AI diunduh saat pertama dipakai (total bisa sekitar 34 MB); foto tidak dikirim dan tetap diproses di perangkat. Hasil terbaik biasanya dari foto orang dengan subjek yang jelas.
+            <strong>Proses cloud via withoutBG:</strong> gambar dikirim ke layanan API tanpa menyimpan salinan di aplikasi. Maksimal 20 MB per gambar; pemrosesan memakai kredit API. Hasil terbaik biasanya dari foto dengan subjek yang jelas.
           </p>
         </OfficeToolFrame>
         {status.finished && status.downloads.length > 0 && (

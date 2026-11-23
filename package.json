@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "start": "node server/index.mjs",
     "preview": "vite preview",
     "test:ocr": "node --test tests/ocr-function.test.mjs",
     "test:games": "node --experimental-strip-types --test tests/mini-games.test.mjs"

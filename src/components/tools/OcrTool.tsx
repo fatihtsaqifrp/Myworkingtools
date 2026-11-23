@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DropZone } from '../common/DropZone';
 import { formatBytes, formatDuration } from '../../utils/natural-sort';
 
-const OCR_FUNCTION_URL = '/.netlify/functions/ocr';
+const OCR_FUNCTION_URL = '/api/ocr';
 const MAX_FILE_SIZE = 1024 * 1024;
 const ACCEPTED_FILES = '.pdf,.png,.jpg,.jpeg,.gif,.tif,.tiff,.bmp,application/pdf,image/png,image/jpeg,image/gif,image/tiff,image/bmp';
 
@@ -74,7 +74,7 @@ export function OcrTool() {
       try {
         result = await response.json() as OcrResponse;
       } catch {
-        throw new Error('Layanan OCR tidak tersedia. Pastikan aplikasi dijalankan melalui Netlify.');
+        throw new Error('Layanan OCR tidak tersedia. Pastikan server aplikasi berjalan.');
       }
 
       if (!response.ok) {
@@ -94,7 +94,7 @@ export function OcrTool() {
     } catch (requestError) {
       if (requestError instanceof Error && requestError.name === 'AbortError') return;
       setError(requestError instanceof TypeError
-        ? 'Tidak dapat menghubungi fungsi OCR. Jalankan atau deploy aplikasi melalui Netlify.'
+        ? 'Tidak dapat menghubungi layanan OCR. Periksa koneksi lalu coba lagi.'
         : requestError instanceof Error
           ? requestError.message
           : 'Gagal memproses OCR. Coba lagi.');
@@ -139,7 +139,7 @@ export function OcrTool() {
       <div>
         <h2 className="text-lg font-bold text-gray-900 sm:text-xl">Ekstrak Teks (OCR)</h2>
         <p className="text-xs text-gray-500">
-          OCR.space Engine 3 melalui Netlify Function, dengan deteksi bahasa, tabel, dan orientasi otomatis.
+          OCR.space Engine 3 melalui API server, dengan deteksi bahasa, tabel, dan orientasi otomatis.
         </p>
       </div>
 
@@ -181,7 +181,7 @@ export function OcrTool() {
           </div>
 
           <p className="text-[11px] text-amber-800">
-            File dikirim ke Netlify Function lalu diteruskan ke OCR.space. Jangan proses dokumen rahasia. API key disimpan sebagai environment variable rahasia di Netlify, bukan di browser. Paket gratis: maksimal 1 MB per file dan PDF 3 halaman.
+            File dikirim ke server lalu diteruskan ke OCR.space. Jangan proses dokumen rahasia. API key disimpan sebagai environment variable rahasia di server Render, bukan di browser. Paket gratis: maksimal 1 MB per file dan PDF 3 halaman.
           </p>
 
           <button
