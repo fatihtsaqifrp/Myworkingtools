@@ -72,7 +72,7 @@ export function ToolDashboard({ onSelectTool, activeGroup, onActiveGroupChange }
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
-      <header className="dashboard-hero relative mb-10 overflow-hidden rounded-[2rem] px-5 py-14 text-center sm:mb-12 sm:px-12 sm:py-20">
+      <header className="dashboard-hero relative mb-8 px-2 py-12 text-center sm:mb-10 sm:py-16">
         <span className="dashboard-hero-orbit dashboard-hero-orbit-one" aria-hidden="true"><FileImage size={30} /></span>
         <span className="dashboard-hero-orbit dashboard-hero-orbit-two" aria-hidden="true"><Scissors size={26} /></span>
         <span className="dashboard-hero-orbit dashboard-hero-orbit-three" aria-hidden="true"><Minimize2 size={25} /></span>
