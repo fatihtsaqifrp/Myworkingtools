@@ -10,6 +10,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,
+      filename: 'sw-v2.js',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'fatihworkingtools — PDF, Office & Productivity Tools',

@@ -29,7 +29,7 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[headers]]
-  for = "/sw.js"
+  for = "/sw*.js"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
