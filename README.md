@@ -27,7 +27,7 @@ Waktu proses aktual ditampilkan setelah pekerjaan selesai, tetapi tidak dapat di
 
 5. **PWA**:
    - Menggunakan `vite-plugin-pwa`; app shell di-precache dan aset fitur opsional dimuat saat digunakan agar ukuran unduhan awal tetap kecil.
-   - Dapat diinstal sebagai aplikasi desktop atau mobile. OCR lokal di Bulk Image OCR memuat language data saat digunakan.
+   - Dapat diinstal sebagai aplikasi desktop atau mobile. Modul OCR mengirim gambar melalui server ke OCR.space.
 
 ---
 
@@ -51,14 +51,14 @@ Waktu proses aktual ditampilkan setelah pekerjaan selesai, tetapi tidak dapat di
 | **14. QR & Barcode Generator** | Buat QR/Code 128 dari teks, CSV, atau Excel dan susun sebagai PDF A4. |
 | **15. DOCX Mail Merge** | Isi template Word dari CSV/Excel lalu unduh dokumen personalisasi dalam ZIP. |
 | **16. Audio & Video Tools** | Kompres MP4, trim klip, atau ekstrak MP3 dengan FFmpeg WebAssembly. |
-| **17. Background Remover & OCR** | Hapus latar foto melalui API cloud withoutBG dan bandingkan pratinjau asli/hasil; OCR gambar tersedia dalam Bahasa Indonesia/English. |
+| **17. Background Remover & OCR** | Hapus latar foto melalui API cloud withoutBG atau proses gratis secara lokal; OCR gambar dikirim ke OCR.space dalam Bahasa Indonesia/English. |
 | **18. Scientific Calculator** | Kalkulator ilmiah lokal dengan fungsi trigonometri (DEG/RAD), logaritma, akar, pangkat, faktorial, konstanta, dan riwayat perhitungan. |
 | **19. Mini Games** | Main Sudoku, 2048, Zip, Patches (susun patch warna dengan drag-and-drop), dan Queens langsung di browser tanpa backend. |
 
 ### Batas pemrosesan dan ketergantungan
 
 - Untuk melindungi memori tab, beberapa modul membatasi jumlah/ukuran file dan jumlah baris/dokumen per batch; batas yang tepat ditampilkan pada pesan validasi.
-- OCR.space Scanner memerlukan `OCR_SPACE_API_KEY` di environment server. File dikirim ke server lalu diteruskan ke OCR.space; jangan gunakan untuk dokumen rahasia jika tidak menyetujui pemrosesan pihak ketiga. Server membatasi file hingga 1 MB dan menerapkan batas 10 permintaan per menit per IP pada tiap instance (best effort, bukan kuota global). Paket gratis OCR.space membatasi PDF hingga 3 halaman dan Engine 3 hingga 1.000 konversi per bulan. Lihat [dokumentasi OCR.space](https://ocr.space/ocrapi).
+- OCR.space Scanner dan Bulk Image OCR memerlukan `OCR_SPACE_API_KEY` di environment server. File dikirim ke server lalu diteruskan ke OCR.space; jangan gunakan untuk dokumen rahasia jika tidak menyetujui pemrosesan pihak ketiga. Server membatasi file hingga 1 MB dan 10 permintaan per menit per IP pada tiap instance (best effort, bukan kuota global). Paket gratis OCR.space membatasi PDF hingga 3 halaman dan Engine 3 hingga 1.000 konversi per bulan. Lihat [dokumentasi OCR.space](https://ocr.space/ocrapi).
 - Background removal mode lokal memakai model MODNet melalui Transformers.js; model/runtime sekitar 34 MB diunduh saat pertama digunakan dan gambar tidak dikirim ke server. Mode Cloud withoutBG memakai 1 kredit per gambar yang berhasil dan mengirim gambar ke layanan; maksimum 20 MB per gambar dan 10 gambar per menit.
 - Crop PDF mengubah batas tampilan (`CropBox`); konten di luar batas crop tidak dihapus permanen dan mungkin masih bisa dipulihkan.
 - Output background removal disediakan sebagai file PNG terpisah. Untuk batch, unduh tiap gambar dari tautan hasil agar browser tidak memblokir unduhan otomatis bertubi-tubi.
@@ -163,7 +163,8 @@ npm run preview
 Blueprint `render.yaml` membuat satu Node web service yang menyajikan frontend dan API proxy. Tidak ada database.
 
 1. Push repository ke GitHub dan buat Blueprint di Render dari repository tersebut.
-2. Render menjalankan `npm ci && npm run build`, lalu `npm start`. Health check tersedia di `/api/health`.
+2. Isi `OCR_SPACE_API_KEY` bila ingin menggunakan OCR.
+3. Render menjalankan `npm ci && npm run build`, lalu `npm start`. Health check tersedia di `/api/health`.
 
-Mode lokal background removal tidak memakai key atau kredit. Untuk mode Cloud, isi `WITHOUTBG_API_KEY` di environment variables Render. Untuk OCR, isi `OCR_SPACE_API_KEY`. Kedua key tetap rahasia di server.
+Mode lokal background removal tidak memakai key atau kredit. Untuk mode Cloud, isi `WITHOUTBG_API_KEY` di environment variables Render. Kedua OCR memerlukan `OCR_SPACE_API_KEY`. Semua key tetap rahasia di server.
 # Myworkingtools

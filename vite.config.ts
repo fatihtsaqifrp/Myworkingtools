@@ -2,36 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    viteStaticCopy({
-      targets: [
-        {
-          src: 'node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz',
-          dest: 'assets/tessdata',
-        },
-        {
-          src: 'node_modules/@tesseract.js-data/ind/4.0.0_best_int/ind.traineddata.gz',
-          dest: 'assets/tessdata',
-        },
-        {
-          src: 'node_modules/tesseract.js-core/tesseract-core-relaxedsimd-lstm.wasm*',
-          dest: 'assets/tesscore',
-        },
-        {
-          src: 'node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm*',
-          dest: 'assets/tesscore',
-        },
-        {
-          src: 'node_modules/tesseract.js-core/tesseract-core-lstm.wasm*',
-          dest: 'assets/tesscore',
-        },
-      ],
-    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
@@ -85,7 +60,6 @@ export default defineConfig({
           if (id.includes('node_modules/pdf-lib')) return 'pdf-lib';
           if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs';
           if (id.includes('node_modules/jszip')) return 'jszip';
-          if (id.includes('node_modules/tesseract.js')) return 'tesseract';
           if (id.includes('node_modules/xlsx')) return 'spreadsheet';
         },
       },

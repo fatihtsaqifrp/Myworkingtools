@@ -80,7 +80,8 @@ export default function App() {
               {activeTool === 'code-generator' && <CodeGeneratorTool />}
               {activeTool === 'mail-merge' && <MailMergeTool />}
               {activeTool === 'media' && <MediaTool />}
-              {activeTool === 'ai-studio' && <AIStudioTool />}
+              {activeTool === 'background-remover' && <AIStudioTool initialMode="background" />}
+              {activeTool === 'bulk-ocr' && <AIStudioTool initialMode="ocr" />}
               {activeTool === 'convert-documents' && <DocumentConverterTool />}
               {activeTool === 'calculator' && <ScientificCalculatorTool />}
               {activeTool === 'games' && <PlayGamesTool />}

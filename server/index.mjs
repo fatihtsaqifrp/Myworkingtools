@@ -10,7 +10,7 @@ const MAX_OCR_BYTES = 1024 * 1024;
 const MIME_TYPES = {
   '.avif': 'image/avif', '.css': 'text/css; charset=utf-8', '.gif': 'image/gif',
   '.html': 'text/html; charset=utf-8', '.ico': 'image/x-icon', '.jpeg': 'image/jpeg',
-  '.jpg': 'image/jpeg', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.jpg': 'image/jpeg', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.tif': 'image/tiff', '.tiff': 'image/tiff',
   '.txt': 'text/plain; charset=utf-8', '.wasm': 'application/wasm', '.webmanifest': 'application/manifest+json',
@@ -180,10 +180,14 @@ async function runOcr(request, response) {
   if (!file || typeof file === 'string' || !file.size) return json(response, 400, { error: 'Pilih file PDF atau gambar terlebih dahulu.' });
   if (file.size > MAX_OCR_BYTES) return json(response, 413, { error: 'Paket gratis OCR.space membatasi ukuran file hingga 1 MB.' });
   if (!/\.(pdf|png|jpe?g|gif|tif|tiff|bmp)$/i.test(file.name)) return json(response, 415, { error: 'Format tidak didukung.' });
+  const requestedLanguage = form.get('language');
+  if (requestedLanguage !== null && requestedLanguage !== 'auto' && requestedLanguage !== 'ind' && requestedLanguage !== 'eng') {
+    return json(response, 400, { error: 'Bahasa OCR tidak didukung.' });
+  }
 
   const ocrForm = new FormData();
   ocrForm.append('file', file, file.name);
-  ocrForm.set('language', 'auto');
+  ocrForm.set('language', requestedLanguage ?? 'auto');
   ocrForm.set('OCREngine', '3');
   ocrForm.set('isTable', 'true');
   ocrForm.set('detectOrientation', 'true');

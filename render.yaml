@@ -12,3 +12,5 @@ services:
         value: 22
       - key: WITHOUTBG_API_KEY
         sync: false
+      - key: OCR_SPACE_API_KEY
+        sync: false

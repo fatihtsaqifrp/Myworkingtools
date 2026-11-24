@@ -15,7 +15,8 @@ export type ToolId =
   | 'code-generator'
   | 'mail-merge'
   | 'media'
-  | 'ai-studio'
+  | 'background-remover'
+  | 'bulk-ocr'
   | 'calculator'
   | 'games'
   | 'convert-documents';

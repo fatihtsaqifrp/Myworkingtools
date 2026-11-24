@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Worker as TesseractWorker } from 'tesseract.js';
-import workerPath from 'tesseract.js/dist/worker.min.js?url';
 import { OfficeToolFrame } from './OfficeToolFrame';
 import { useOfficeWorker } from './useOfficeWorker';
 import { formatDuration } from '../../../utils/natural-sort';
@@ -24,9 +22,9 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function AIStudioTool() {
-  const [mode, setMode] = useState<StudioMode>('background');
-  const [backgroundProvider, setBackgroundProvider] = useState<BackgroundProvider>('local');
+export function AIStudioTool({ initialMode }: { initialMode: StudioMode }) {
+  const mode = initialMode;
+  const [backgroundProvider, setBackgroundProvider] = useState<BackgroundProvider>('cloud');
   const [files, setFiles] = useState<File[]>([]);
   const [edgeThreshold, setEdgeThreshold] = useState(20);
   const [cloudCreditState, setCloudCreditState] = useState<CloudCreditState>({ credit: null, expirationDate: null, loading: false, error: null });
@@ -43,13 +41,12 @@ export function AIStudioTool() {
   const [enlargedPreview, setEnlargedPreview] = useState<{ url: string; label: string } | null>(null);
   const cancelOcrRef = useRef(false);
   const ocrStartedRef = useRef(0);
-  const ocrFileIndexRef = useRef(0);
-  const tesseractRef = useRef<TesseractWorker | null>(null);
+  const ocrAbortControllerRef = useRef<AbortController | null>(null);
   const { status, run, stop } = useOfficeWorker();
 
   useEffect(() => () => {
     cancelOcrRef.current = true;
-    void tesseractRef.current?.terminate();
+    ocrAbortControllerRef.current?.abort();
   }, []);
 
   useEffect(() => {
@@ -102,39 +99,36 @@ export function AIStudioTool() {
     cancelOcrRef.current = false;
     const started = performance.now();
     ocrStartedRef.current = started;
-    let worker: TesseractWorker | null = null;
+    const controller = new AbortController();
+    ocrAbortControllerRef.current = controller;
     try {
-      if (files.length > 100) throw new Error('Maksimal 100 gambar untuk OCR per batch.');
-      if (files.some((file) => file.size > 50 * 1024 * 1024)) {
-        throw new Error('Ukuran maksimal setiap gambar untuk OCR adalah 50 MB.');
+      if (files.length > 10) throw new Error('Maksimal 10 gambar OCR per batch (batas 10 request per menit).');
+      if (files.some((file) => file.size > 1024 * 1024)) {
+        throw new Error('Paket gratis OCR.space membatasi ukuran setiap gambar hingga 1 MB.');
       }
-      if (files.reduce((total, file) => total + file.size, 0) > 250 * 1024 * 1024) {
-        throw new Error('Total ukuran gambar untuk OCR maksimal 250 MB per batch.');
+      if (files.some((file) => !/\.(png|jpe?g|gif|tif|tiff|bmp)$/i.test(file.name))) {
+        throw new Error('Format tidak didukung. Gunakan PNG, JPG, GIF, TIFF, atau BMP.');
       }
-      const { createWorker } = await import('tesseract.js');
-      worker = await createWorker(language, 1, {
-        workerPath,
-        corePath: '/assets/tesscore',
-        langPath: '/assets/tessdata',
-        gzip: true,
-        logger: (message) => {
-          if (message.status === 'recognizing text' && typeof message.progress === 'number') {
-            setOcrProgress((ocrFileIndexRef.current + message.progress) / files.length);
-            setOcrDetail(`Membaca ${files[ocrFileIndexRef.current]?.name ?? 'gambar'}...`);
-          } else if (message.status) {
-            setOcrDetail(message.status);
-          }
-        },
-      });
-      tesseractRef.current = worker;
-      if (cancelOcrRef.current) return;
 
       const textResults: string[] = [];
       for (let index = 0; index < files.length; index += 1) {
         if (cancelOcrRef.current) break;
-        ocrFileIndexRef.current = index;
-        const { data } = await worker.recognize(files[index]);
-        textResults.push(`--- ${files[index].name} ---\n${data.text.trim()}`);
+        setOcrDetail(`Mengirim ${index + 1}/${files.length} ke OCR.space: ${files[index].name}`);
+        const form = new FormData();
+        form.append('file', files[index], files[index].name);
+        form.append('language', language);
+        const response = await fetch('/api/ocr', { method: 'POST', body: form, signal: controller.signal });
+        let result: { text?: unknown; error?: unknown };
+        try {
+          result = await response.json() as { text?: unknown; error?: unknown };
+        } catch {
+          throw new Error('Layanan OCR tidak mengirim respons yang valid.');
+        }
+        if (!response.ok) {
+          throw new Error(typeof result.error === 'string' ? `${files[index].name}: ${result.error}` : `OCR gagal (HTTP ${response.status}).`);
+        }
+        if (typeof result.text !== 'string') throw new Error(`OCR tidak mengirim teks untuk ${files[index].name}.`);
+        textResults.push(`--- ${files[index].name} ---\n${result.text.trim()}`);
         setOcrProgress((index + 1) / files.length);
         setOcrDetail(`Selesai membaca ${files[index].name}`);
       }
@@ -152,33 +146,20 @@ export function AIStudioTool() {
         window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
     } catch (error) {
-      if (!cancelOcrRef.current) {
+      if (!cancelOcrRef.current && !(error instanceof Error && error.name === 'AbortError')) {
         setOcrError(getErrorMessage(error, 'OCR gagal. Coba gambar lain.'));
       }
     } finally {
-      if (worker && tesseractRef.current === worker) {
-        tesseractRef.current = null;
-        await worker.terminate();
-      }
+      if (ocrAbortControllerRef.current === controller) ocrAbortControllerRef.current = null;
       setOcrBusy(false);
     }
   };
 
   const cancelOcr = () => {
     cancelOcrRef.current = true;
-    const worker = tesseractRef.current;
-    tesseractRef.current = null;
-    if (worker) void worker.terminate();
+    ocrAbortControllerRef.current?.abort();
+    ocrAbortControllerRef.current = null;
     setOcrBusy(false);
-  };
-
-  const changeMode = (nextMode: StudioMode) => {
-    if (ocrBusy) cancelOcr();
-    if (status.busy) stop();
-    setMode(nextMode);
-    setFiles([]);
-    setOcrError(null);
-    setOcrText('');
   };
 
   if (mode === 'background') {
@@ -188,13 +169,12 @@ export function AIStudioTool() {
 
     return (
       <div className="space-y-4">
-        <StudioModeSwitch mode={mode} onChange={changeMode} />
         <OfficeToolFrame
           title="AI Background Remover"
           description={backgroundProvider === 'local'
             ? 'Model AI berjalan di browser laptop kamu. Foto tetap di perangkat dan tidak dikirim ke server.'
             : 'Model AI cloud untuk detail tepi yang lebih baik. Foto dikirim ke withoutBG untuk diproses.'}
-          actionLabel="Hapus latar dan unduh PNG"
+          actionLabel={backgroundProvider === 'cloud' ? 'Hapus latar · 1 kredit per foto' : 'Hapus latar gratis'}
           status={status}
           onSubmit={runBackgroundRemoval}
           onCancel={stop}
@@ -338,10 +318,9 @@ export function AIStudioTool() {
 
   return (
     <div className="space-y-4">
-      <StudioModeSwitch mode={mode} onChange={changeMode} />
       <OfficeToolFrame
         title="Bulk Image OCR"
-        description="Ekstrak teks dari banyak gambar struk atau dokumen dalam Bahasa Indonesia atau English; hasil dapat disalin dan diunduh."
+        description="Kirim gambar ke OCR.space untuk ekstraksi teks Bahasa Indonesia atau English; hasil dapat disalin dan diunduh."
         actionLabel="Ekstrak teks dan unduh TXT"
         status={ocrStatus}
         onSubmit={runOcr}
@@ -358,9 +337,10 @@ export function AIStudioTool() {
             <option value="eng">English</option>
           </select>
         </label>
-        {ocrBusy && (
-          <p className="text-xs text-gray-500">Waktu berjalan: {formatDuration((performance.now() - ocrStartedRef.current) / 1000)} · model bahasa tersedia lokal.</p>
-        )}
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
+          Gambar dikirim ke OCR.space untuk diproses. Batas paket gratis: 1 MB per gambar, maksimal 10 gambar per batch, dan 1.000 konversi per bulan. Hindari dokumen sensitif.
+        </p>
+        {ocrBusy && <p className="text-xs text-gray-500">Diproses OCR.space · {formatDuration((performance.now() - ocrStartedRef.current) / 1000)}</p>}
         {ocrText && (
           <div className="space-y-2">
             <p className="text-xs text-gray-500">Selesai dalam {formatDuration(ocrElapsed ?? 0)}.</p>
@@ -376,19 +356,6 @@ export function AIStudioTool() {
           </div>
         )}
       </OfficeToolFrame>
-    </div>
-  );
-}
-
-function StudioModeSwitch({ mode, onChange }: { mode: StudioMode; onChange: (mode: StudioMode) => void }) {
-  return (
-    <div className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-white p-1">
-      <button type="button" onClick={() => onChange('background')} className={`rounded-lg px-3 py-2 text-xs font-semibold ${mode === 'background' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-        Hapus Latar
-      </button>
-      <button type="button" onClick={() => onChange('ocr')} className={`rounded-lg px-3 py-2 text-xs font-semibold ${mode === 'ocr' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-        OCR Gambar
-      </button>
     </div>
   );
 }
