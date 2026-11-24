@@ -230,9 +230,12 @@ async function serveStatic(request, response) {
     const body = await readFile(filePath);
     const extension = extname(filePath).toLowerCase();
     const immutable = pathname.startsWith('/assets/') && /\.[a-f0-9]{8,}\./i.test(pathname);
+    const serviceWorkerAsset = /^\/(?:sw\.js|registerSW\.js|workbox-[^/]+\.js)$/.test(pathname);
     response.writeHead(200, {
       'Content-Type': MIME_TYPES[extension] ?? 'application/octet-stream',
-      'Cache-Control': filePath.endsWith('index.html') ? 'no-cache' : immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',
+      'Cache-Control': filePath.endsWith('index.html') || serviceWorkerAsset
+        ? 'no-cache, no-store, must-revalidate'
+        : immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',
     });
     response.end(body);
   } catch {

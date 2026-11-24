@@ -4,7 +4,6 @@ import { useOfficeWorker } from './useOfficeWorker';
 
 export function ImageOptimizerTool() {
   const [files, setFiles] = useState<File[]>([]);
-  const [format, setFormat] = useState<'image/jpeg' | 'image/png' | 'image/webp'>('image/webp');
   const [maxDimension, setMaxDimension] = useState(2000);
   const [quality, setQuality] = useState(0.82);
   const [watermarkText, setWatermarkText] = useState('');
@@ -15,34 +14,26 @@ export function ImageOptimizerTool() {
     if (!files.length) return;
     run(
       () => new Worker(new URL('../../../workers/image-optimizer.worker.ts', import.meta.url), { type: 'module' }),
-      { files, format, maxDimension, quality, watermarkText, watermarkLogo }
+      { files, maxDimension, quality, watermarkText, watermarkLogo }
     );
   };
 
   return (
     <OfficeToolFrame
       title="Bulk Image Optimizer"
-      description="Kompres banyak gambar, samakan batas dimensi, ubah ke JPG/PNG/WebP, dan tambahkan watermark teks atau logo."
-      actionLabel="Optimalkan dan unduh ZIP"
+      description="Kompres banyak gambar dengan format asli, atur batas dimensi, dan tambahkan watermark teks atau logo."
+      actionLabel="Kompres dan unduh gambar"
       status={status}
       onSubmit={optimize}
       onCancel={stop}
     >
       <label className="block space-y-2 text-sm font-medium text-gray-700">
         Pilih gambar
-        <input required type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []))} className="block w-full rounded-xl border border-gray-200 p-3 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700" />
-        <span className="text-xs font-normal text-gray-400">{files.length ? `${files.length} gambar dipilih` : 'Mendukung JPG, PNG, dan WebP.'}</span>
+        <input required type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []))} className="block w-full rounded-xl border border-gray-200 p-3 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700" />
+        <span className="text-xs font-normal text-gray-400">{files.length ? `${files.length} gambar dipilih` : 'Mendukung JPG, PNG, dan WebP. Format hasil mengikuti ekstensi file.'}</span>
       </label>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="space-y-1.5 text-xs font-semibold text-gray-600">
-          Format
-          <select value={format} onChange={(event) => setFormat(event.target.value as typeof format)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-normal text-gray-800">
-            <option value="image/webp">WebP</option>
-            <option value="image/jpeg">JPG</option>
-            <option value="image/png">PNG</option>
-          </select>
-        </label>
         <label className="space-y-1.5 text-xs font-semibold text-gray-600">
           Sisi terpanjang (px)
           <input type="number" min={128} max={12000} step={1} value={maxDimension} onChange={(event) => setMaxDimension(Number(event.target.value))} className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm font-normal" />

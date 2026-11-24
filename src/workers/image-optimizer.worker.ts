@@ -1,9 +1,7 @@
 import imageCompression from 'browser-image-compression';
-import JSZip from 'jszip';
 
 interface ImageJobMessage {
   files: File[];
-  format: 'image/jpeg' | 'image/png' | 'image/webp';
   maxDimension: number;
   quality: number;
   watermarkText: string;
@@ -15,8 +13,8 @@ function safeName(name: string): string {
 }
 
 self.onmessage = async (event: MessageEvent<ImageJobMessage>) => {
-  const { files, format, maxDimension, quality, watermarkText, watermarkLogo } = event.data;
-  const zip = new JSZip();
+  const { files, maxDimension, quality, watermarkText, watermarkLogo } = event.data;
+  const outputs: { name: string; mimeType: string; buffer: ArrayBuffer }[] = [];
   let logoBitmap: ImageBitmap | null = null;
   try {
     if (!files.length) throw new Error('Pilih setidaknya satu gambar.');
@@ -31,11 +29,17 @@ self.onmessage = async (event: MessageEvent<ImageJobMessage>) => {
       throw new Error('Total ukuran gambar dan logo maksimal 500 MB per batch.');
     }
     if (watermarkLogo) logoBitmap = await createImageBitmap(watermarkLogo);
-    const extension = format === 'image/jpeg' ? 'jpg' : format === 'image/png' ? 'png' : 'webp';
-
     for (let index = 0; index < files.length; index += 1) {
       const source = files[index];
-      if (!source.type.startsWith('image/')) {
+      const extension = source.name.split('.').pop()?.toLowerCase();
+      const format = extension === 'jpg' || extension === 'jpeg'
+        ? 'image/jpeg'
+        : extension === 'png'
+          ? 'image/png'
+          : extension === 'webp'
+            ? 'image/webp'
+            : null;
+      if (!format || !source.type.startsWith('image/')) {
         throw new Error(`${source.name}: file bukan gambar yang didukung.`);
       }
 
@@ -99,7 +103,12 @@ self.onmessage = async (event: MessageEvent<ImageJobMessage>) => {
           type: format,
           quality: format === 'image/png' ? undefined : quality,
         });
-        zip.file(`${String(index + 1).padStart(3, '0')}_${safeName(source.name)}.${extension}`, output);
+        const buffer = await output.arrayBuffer();
+        outputs.push({
+          name: `${String(index + 1).padStart(3, '0')}_${safeName(source.name)}_compressed.${extension}`,
+          mimeType: format,
+          buffer,
+        });
       } finally {
         bitmap.close();
         canvas.width = 0;
@@ -115,15 +124,7 @@ self.onmessage = async (event: MessageEvent<ImageJobMessage>) => {
     }
 
     logoBitmap?.close();
-    const buffer = await zip.generateAsync({ type: 'arraybuffer', compression: 'STORE' });
-    self.postMessage(
-      {
-        type: 'done',
-        total: files.length,
-        outputs: [{ name: 'gambar_optimized.zip', mimeType: 'application/zip', buffer }],
-      },
-      { transfer: [buffer] }
-    );
+    self.postMessage({ type: 'done', total: files.length, outputs }, { transfer: outputs.map((output) => output.buffer) });
   } catch (error) {
     logoBitmap?.close();
     self.postMessage({

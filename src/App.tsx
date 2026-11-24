@@ -27,6 +27,7 @@ const PlayGamesTool = lazy(() => import('./components/tools/PlayGamesTool').then
 
 export default function App() {
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
+  const [dashboardGroup, setDashboardGroup] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   return (
@@ -89,7 +90,7 @@ export default function App() {
             </Suspense>
           </div>
         ) : (
-          <ToolDashboard onSelectTool={setActiveTool} />
+          <ToolDashboard onSelectTool={setActiveTool} activeGroup={dashboardGroup} onActiveGroupChange={setDashboardGroup} />
         )}
       </main>
 

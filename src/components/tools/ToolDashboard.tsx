@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { ToolId } from '../../types';
 
 interface ToolItem {
@@ -10,6 +11,8 @@ interface ToolItem {
 
 interface ToolDashboardProps {
   onSelectTool: (id: ToolId) => void;
+  activeGroup: string | null;
+  onActiveGroupChange: (group: string | null) => void;
 }
 
 const TOOLS: ToolItem[] = [
@@ -36,13 +39,22 @@ const TOOLS: ToolItem[] = [
   { id: 'games', title: 'Permainan', description: 'Mainkan Sudoku, 2048, dan Zip.', group: 'Lainnya' },
 ];
 
-export function ToolDashboard({ onSelectTool }: ToolDashboardProps) {
+const GROUPS = [
+  { name: 'Gambar', description: 'Kompres, bersihkan, atau ambil teks dari gambar.' },
+  { name: 'PDF', description: 'Gabungkan, rapikan, kompres, dan ubah halaman PDF.' },
+  { name: 'Dokumen', description: 'Konversi, olah tabel, dan buat dokumen.' },
+  { name: 'Media', description: 'Kompres atau potong audio dan video.' },
+  { name: 'Lainnya', description: 'Alat bantu dan permainan ringan.' },
+];
+
+export function ToolDashboard({ onSelectTool, activeGroup, onActiveGroupChange }: ToolDashboardProps) {
   const [search, setSearch] = useState('');
+  const query = search.trim().toLocaleLowerCase('id');
   const filteredTools = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('id');
     if (!query) return TOOLS;
     return TOOLS.filter((tool) => `${tool.title} ${tool.description} ${tool.group}`.toLocaleLowerCase('id').includes(query));
-  }, [search]);
+  }, [query]);
+  const visibleTools = query ? filteredTools : filteredTools.filter((tool) => tool.group === activeGroup);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
@@ -57,29 +69,66 @@ export function ToolDashboard({ onSelectTool }: ToolDashboardProps) {
         <input
           type="search"
           value={search}
+          placeholder="Cari alat, misalnya kompres gambar"
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Cari, misalnya gabungkan PDF"
           className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
       </label>
 
-      {filteredTools.length > 0 ? (
+      {!query && !activeGroup ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredTools.map((tool) => (
-            <button
-              key={tool.id}
-              type="button"
-              onClick={() => onSelectTool(tool.id)}
-              className="group min-h-32 rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              <span className="text-xs font-medium text-slate-500">{tool.group}</span>
-              <span className="mt-2 block text-base font-semibold text-slate-900 group-hover:text-blue-700">{tool.title}</span>
-              <span className="mt-1 block text-sm leading-5 text-slate-600">{tool.description}</span>
-            </button>
-          ))}
+          {GROUPS.map((group) => {
+            const count = TOOLS.filter((tool) => tool.group === group.name).length;
+            return (
+              <button
+                key={group.name}
+                type="button"
+                onClick={() => onActiveGroupChange(group.name)}
+                className="tool-card group relative isolate flex min-h-36 flex-col items-start overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                <span className="tool-card-backdrop" aria-hidden="true" />
+                <span className="relative z-10 text-lg font-semibold text-slate-900 transition-colors group-hover:text-blue-700">{group.name}</span>
+                <span className="relative z-10 mt-2 text-sm leading-5 text-slate-600">{group.description}</span>
+                <span className="relative z-10 mt-auto flex w-full items-center justify-between pt-4 text-xs font-medium text-slate-500">
+                  <span>{count} alat</span><ArrowRight size={15} className="text-blue-600 transition-transform group-hover:translate-x-1" />
+                </span>
+              </button>
+            );
+          })}
         </div>
       ) : (
-        <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Alat tidak ditemukan. Coba kata kunci lain.</p>
+        <>
+          {!query && activeGroup && (
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">{activeGroup}</h2>
+                <p className="text-sm text-slate-500">Pilih alat yang kamu butuhkan.</p>
+              </div>
+              <button type="button" onClick={() => onActiveGroupChange(null)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-blue-700">
+                <ArrowLeft size={16} /> Semua kategori
+              </button>
+            </div>
+          )}
+          {visibleTools.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleTools.map((tool) => (
+                <button
+                  key={tool.id}
+                  type="button"
+                  onClick={() => onSelectTool(tool.id)}
+                  className="tool-card group relative isolate min-h-32 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                >
+                  <span className="tool-card-backdrop" aria-hidden="true" />
+                  <span className="relative z-10 text-xs font-medium text-slate-500">{tool.group}</span>
+                  <span className="relative z-10 mt-2 block text-base font-semibold text-slate-900 transition-colors group-hover:text-blue-700">{tool.title}</span>
+                  <span className="relative z-10 mt-1 block text-sm leading-5 text-slate-600">{tool.description}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Alat tidak ditemukan. Coba kata kunci lain.</p>
+          )}
+        </>
       )}
     </div>
   );
