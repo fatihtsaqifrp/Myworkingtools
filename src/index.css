@@ -451,6 +451,47 @@ body {
   animation: hero-enter 650ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
+.dashboard-hero {
+  background:
+    radial-gradient(ellipse at 50% 110%, rgb(191 219 254 / 52%), transparent 48%),
+    linear-gradient(145deg, rgb(255 255 255 / 92%), rgb(239 246 255 / 92%));
+  animation: hero-enter 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.dashboard-hero-orbit {
+  position: absolute;
+  display: grid;
+  width: 3.75rem;
+  height: 3.75rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 85%);
+  border-radius: 1.25rem;
+  background: rgb(255 255 255 / 68%);
+  color: #3b82f6;
+  box-shadow: 0 12px 35px rgb(37 99 235 / 9%);
+  animation: badge-float 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.dashboard-hero-orbit-one { left: 9%; top: 20%; transform: rotate(-10deg); }
+.dashboard-hero-orbit-two { right: 12%; top: 17%; color: #8b5cf6; animation-delay: -1.8s; }
+.dashboard-hero-orbit-three { right: 19%; bottom: 14%; color: #059669; animation-delay: -3s; }
+
+.theme-dark .dashboard-hero {
+  background:
+    radial-gradient(ellipse at 50% 110%, rgb(37 99 235 / 24%), transparent 48%),
+    linear-gradient(145deg, rgb(15 23 42 / 94%), rgb(17 30 57 / 94%));
+}
+
+.theme-dark .dashboard-hero h1,
+.theme-dark .tool-card h2 {
+  color: #f8fafc;
+}
+
+.theme-dark .dashboard-hero p:not(.text-blue-700) {
+  color: #cbd5e1;
+}
+
 .tool-card {
   animation: card-enter 480ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
@@ -474,18 +515,24 @@ body {
 }
 
 .tool-card-icon {
+  position: absolute;
+  right: 0.9rem;
+  bottom: 0.15rem;
+  z-index: 0;
   color: #2563eb;
-  opacity: 0;
-  transform: translate(12px, 12px) rotate(-18deg) scale(0.7);
+  opacity: 0.055;
+  transform: translate(12px, 12px) rotate(-18deg) scale(0.8);
   transition:
-    opacity 280ms ease,
-    transform 550ms cubic-bezier(0.2, 0.75, 0.25, 1);
+    opacity 300ms ease,
+    transform 600ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    color 300ms ease;
+  pointer-events: none;
 }
 
 .tool-card:hover .tool-card-icon,
 .tool-card:focus-within .tool-card-icon {
-  opacity: 0.09;
-  transform: translate(0, 0) rotate(7deg) scale(1.05);
+  opacity: 0.17;
+  transform: translate(-3px, -5px) rotate(7deg) scale(1.12);
 }
 
 .tool-category-icon {

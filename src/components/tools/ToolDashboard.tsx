@@ -1,5 +1,10 @@
-import { useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import {
+  ArrowDown, ArrowLeft, ArrowRight, Calculator, Combine, Crop, Eraser, FileImage,
+  FileSearch, FileSignature, Files, Film, Gamepad2, Image, Images, Minimize2,
+  PanelsTopLeft, QrCode, ScanText, Scissors, Shield, Sparkles, Table2,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ToolId } from '../../types';
 
 interface ToolItem {
@@ -40,15 +45,24 @@ const TOOLS: ToolItem[] = [
 ];
 
 const GROUPS = [
-  { name: 'Gambar', description: 'Kompres, bersihkan, atau ambil teks dari gambar.' },
-  { name: 'PDF', description: 'Gabungkan, rapikan, kompres, dan ubah halaman PDF.' },
-  { name: 'Dokumen', description: 'Konversi, olah tabel, dan buat dokumen.' },
-  { name: 'Media', description: 'Kompres atau potong audio dan video.' },
-  { name: 'Lainnya', description: 'Alat bantu dan permainan ringan.' },
+  { name: 'Gambar', description: 'Kompres, bersihkan, atau ambil teks dari gambar.', icon: Image },
+  { name: 'PDF', description: 'Gabungkan, rapikan, kompres, dan ubah halaman PDF.', icon: Files },
+  { name: 'Dokumen', description: 'Konversi, olah tabel, dan buat dokumen.', icon: PanelsTopLeft },
+  { name: 'Media', description: 'Kompres atau potong audio dan video.', icon: Film },
+  { name: 'Lainnya', description: 'Alat bantu dan permainan ringan.', icon: Sparkles },
 ];
+
+const TOOL_ICONS: Partial<Record<ToolId, LucideIcon>> = {
+  'background-remover': Eraser, 'bulk-ocr': ScanText, merge: Combine, split: Scissors,
+  organize: PanelsTopLeft, crop: Crop, compress: Minimize2, sign: FileSignature,
+  img2pdf: Images, pdf2img: FileImage, 'convert-documents': Files, ocr: FileSearch,
+  watermark: Sparkles, protect: Shield, 'image-optimizer': Image, spreadsheet: Table2,
+  'code-generator': QrCode, 'mail-merge': Files, media: Film, calculator: Calculator, games: Gamepad2,
+};
 
 export function ToolDashboard({ onSelectTool, activeGroup, onActiveGroupChange }: ToolDashboardProps) {
   const [search, setSearch] = useState('');
+  const groupsRef = useRef<HTMLElement>(null);
   const query = search.trim().toLocaleLowerCase('id');
   const filteredTools = useMemo(() => {
     if (!query) return TOOLS;
@@ -57,28 +71,54 @@ export function ToolDashboard({ onSelectTool, activeGroup, onActiveGroupChange }
   const visibleTools = query ? filteredTools : filteredTools.filter((tool) => tool.group === activeGroup);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-      <header className="mb-8">
-        <p className="text-sm font-medium text-blue-600">Alat untuk file</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Apa yang ingin kamu lakukan?</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Pilih alat. Unggah file. Selesaikan pekerjaan.</p>
+    <div className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
+      <header className="dashboard-hero relative mb-10 overflow-hidden rounded-[2rem] px-5 py-14 text-center sm:mb-12 sm:px-12 sm:py-20">
+        <span className="dashboard-hero-orbit dashboard-hero-orbit-one" aria-hidden="true"><FileImage size={30} /></span>
+        <span className="dashboard-hero-orbit dashboard-hero-orbit-two" aria-hidden="true"><Scissors size={26} /></span>
+        <span className="dashboard-hero-orbit dashboard-hero-orbit-three" aria-hidden="true"><Minimize2 size={25} /></span>
+        <div className="relative z-10 mx-auto max-w-3xl">
+          <p className="text-sm font-semibold tracking-wide text-blue-700">Alat untuk file</p>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">Beresin file, <span className="text-blue-600">tanpa ribet.</span></h1>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-600">Pilih alat, masukkan file, lalu beres. Semua bisa dilakukan langsung di sini.</p>
+          <label className="mx-auto mt-7 block max-w-2xl text-left">
+            <span className="sr-only">Cari alat</span>
+            <input
+              type="search"
+              value={search}
+              placeholder="Mau ngapain? Cari alat di sini..."
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 text-base text-slate-900 shadow-lg shadow-blue-900/5 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+            />
+          </label>
+          {!search && (
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              {([
+                ['Kompres PDF', 'compress'], ['Gabungkan PDF', 'merge'], ['Kompres gambar', 'image-optimizer'],
+              ] as const).map(([label, id]) => (
+                <button key={id} type="button" onClick={() => onSelectTool(id)} className="rounded-full border border-blue-100 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 hover:shadow-md">
+                  {label}<ArrowRight size={14} className="ml-1.5 inline-block" />
+                </button>
+              ))}
+            </div>
+          )}
+          {!search && !activeGroup && (
+            <button type="button" onClick={() => groupsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 transition hover:gap-3">
+              Lihat semua alat <ArrowDown size={16} />
+            </button>
+          )}
+        </div>
       </header>
 
-      <label className="mb-8 block">
-        <span className="sr-only">Cari alat</span>
-        <input
-          type="search"
-          value={search}
-          placeholder="Cari alat, misalnya kompres gambar"
-          onChange={(event) => setSearch(event.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-        />
-      </label>
-
       {!query && !activeGroup ? (
+        <section ref={groupsRef} className="scroll-mt-8">
+        <div className="mb-5">
+          <h2 className="text-xl font-semibold tracking-tight text-slate-900">Pilih kategori</h2>
+          <p className="mt-1 text-sm text-slate-500">Semua alat tersusun rapi, tinggal pilih yang kamu perlu.</p>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {GROUPS.map((group) => {
             const count = TOOLS.filter((tool) => tool.group === group.name).length;
+            const GroupIcon = group.icon;
             return (
               <button
                 key={group.name}
@@ -86,7 +126,7 @@ export function ToolDashboard({ onSelectTool, activeGroup, onActiveGroupChange }
                 onClick={() => onActiveGroupChange(group.name)}
                 className="tool-card group relative isolate flex min-h-36 flex-col items-start overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
-                <span className="tool-card-backdrop" aria-hidden="true" />
+                <GroupIcon className="tool-card-icon" size={76} strokeWidth={1.2} aria-hidden="true" />
                 <span className="relative z-10 text-lg font-semibold text-slate-900 transition-colors group-hover:text-blue-700">{group.name}</span>
                 <span className="relative z-10 mt-2 text-sm leading-5 text-slate-600">{group.description}</span>
                 <span className="relative z-10 mt-auto flex w-full items-center justify-between pt-4 text-xs font-medium text-slate-500">
@@ -96,6 +136,7 @@ export function ToolDashboard({ onSelectTool, activeGroup, onActiveGroupChange }
             );
           })}
         </div>
+        </section>
       ) : (
         <>
           {!query && activeGroup && (
@@ -118,7 +159,10 @@ export function ToolDashboard({ onSelectTool, activeGroup, onActiveGroupChange }
                   onClick={() => onSelectTool(tool.id)}
                   className="tool-card group relative isolate min-h-32 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                 >
-                  <span className="tool-card-backdrop" aria-hidden="true" />
+                  {(() => {
+                    const ToolIcon = TOOL_ICONS[tool.id] ?? Files;
+                    return <ToolIcon className="tool-card-icon" size={70} strokeWidth={1.2} aria-hidden="true" />;
+                  })()}
                   <span className="relative z-10 text-xs font-medium text-slate-500">{tool.group}</span>
                   <span className="relative z-10 mt-2 block text-base font-semibold text-slate-900 transition-colors group-hover:text-blue-700">{tool.title}</span>
                   <span className="relative z-10 mt-1 block text-sm leading-5 text-slate-600">{tool.description}</span>
