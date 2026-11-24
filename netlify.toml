@@ -38,6 +38,12 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[redirects]]
+  from = "https://fthtools.netlify.app/*"
+  to = "https://tools.luminaspace.id/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
